@@ -1,15 +1,15 @@
 import json
 
 from django.core.exceptions import ValidationError
-from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import DetailView, ListView, CreateView, UpdateView, DeleteView
+from rest_framework.generics import ListAPIView, RetrieveAPIView, CreateAPIView, UpdateAPIView, DestroyAPIView
 
 from ads.models import Category, Ad
-from avito.settings import TOTAL_ON_PAGE
+from ads.serializers import AdListSerializer, AdRetrieveSerializer
 from users.models import User
 
 
@@ -22,57 +22,45 @@ def root(request):
 # Views Ads:
 
 
-class AdListView(ListView):
-    model = Ad
+class AdListView(ListAPIView):
+    queryset = Ad.objects.all()
+    serializer_class = AdListSerializer
 
     def get(self, request, *args, **kwargs):
-        super().get(self, request, *args, **kwargs)
+        q_category_ads = request.GET.get('cat', None)
+        q_text_in_ads = request.GET.get('text', None)
+        q_location_ads = request.GET.get('location', None)
+        q_price_from = request.GET.get('price_from', None)
+        q_price_to = request.GET.get('price_to', None)
 
-        self.object_list = self.object_list.select_related('author').select_related('category').order_by('-price')  # сортировка объявлений
+        if q_category_ads:
+            self.queryset = self.queryset.filter(
+                category_id__in=q_category_ads
+            )
+        if q_text_in_ads:
+            self.queryset = self.queryset.filter(
+                name__contains=q_text_in_ads
+            )
+        if q_location_ads:
+            self.queryset = self.queryset.filter(
+                author__locations__name__icontains=q_location_ads
+            )
+        if q_price_from and q_price_to:
+            self.queryset = self.queryset.filter(
+                price__range=(q_price_from, q_price_to)
+            )
 
-        paginator = Paginator(object_list=self.object_list, per_page=TOTAL_ON_PAGE)
-        page_number = request.GET.get('page', 1)
-        page_object = paginator.get_page(page_number)
-
-        ads = []
-        for ad in page_object:
-            ads.append({
-                "id": ad.id,
-                "name": ad.name,
-                "author_id": ad.author_id,
-                "description": ad.description,
-                "price": ad.price,
-                "category_id": ad.category_id
-            })
-
-        response = {'items': ads,
-                    "total": paginator.count,
-                    'num_pages': paginator.num_pages
-                    }
-
-        return JsonResponse(response, json_dumps_params={'ensure_ascii': False})
-
-
-class AdDetailView(DetailView):
-    model = Ad
-
-    def get(self, request, *args, **kwargs):
-        ad = self.get_object()
-
-        return JsonResponse({
-            "id": ad.id,
-            "name": ad.name,
-            'author_id': ad.author.id,
-            "author": ad.author.first_name,
-            "price": ad.price,
-            "description": ad.description,
-            "is_published": ad.is_published,
-            'category_id': ad.category.id,
-        }, json_dumps_params={'ensure_ascii': False})
+        return super().get(request, *args, **kwargs)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+class AdDetailView(RetrieveAPIView):
+    queryset = Ad.objects.all()
+    serializer_class = AdRetrieveSerializer
+
+
 class AdCreateView(CreateView):
+    # queryset = Ad.objects.all()
+    # serializer_class = AdCreateSerializer
     model = Ad
     fields = ['name', 'author', 'price', 'description', 'is_published', 'image', 'category']
 
@@ -109,6 +97,8 @@ class AdCreateView(CreateView):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class AdUpdateView(UpdateView):
+    # queryset = Ad.objects.all()
+    # serializer_class = AdUpdateSerializer
     model = Ad
     fields = ['name', 'author', 'price', 'description', 'category']
 
@@ -167,6 +157,8 @@ class AdImageView(UpdateView):  # добавление изображений
 
 @method_decorator(csrf_exempt, name='dispatch')
 class AdDeleteView(DeleteView):
+    # queryset = Ad.objects.all()
+    # serializer_class = AdDestroySerializer
     model = Ad
     success_url = 'ad/'
 

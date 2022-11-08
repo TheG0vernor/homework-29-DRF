@@ -17,8 +17,14 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
+from rest_framework import routers
 
 from ads import views
+from users.views import LocationViewSet
+
+router = routers.SimpleRouter()
+
+router.register('locations', LocationViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -28,9 +34,11 @@ urlpatterns = [
     path('cat/<int:pk>/update/', views.CategoryUpdateView.as_view(), name='category_update'),
     path('cat/<int:pk>/delete/', views.CategoryDeleteView.as_view(), name='category_delete'),
 
-    path('ad/', include('ads.urls')),
-    path('user/', include('users.urls')),
+    path('ads/', include('ads.urls')),
+    path('users/', include('users.urls')),
 ]
+
+urlpatterns += router.urls
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
