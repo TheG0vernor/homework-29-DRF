@@ -10,9 +10,15 @@ class UserListSerializer(serializers.ModelSerializer):
         slug_field='name'
     )
 
+    total_ads = serializers.SerializerMethodField()  # переопределится в методе ниже
+
+    @staticmethod
+    def get_total_ads(user):  # имя аргумента может быть любым
+        return user.ad_set.filter(is_published=True).count()
+
     class Meta:
         model = User
-        fields = '__all__'
+        exclude = ['password']
 
 
 class UserRetrieveSerializer(serializers.ModelSerializer):
